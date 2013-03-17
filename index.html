@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Substance</title>
+    <link href='styles/fonts/open-sans/open-sans.css' rel='stylesheet' type='text/css'>
+    <link href="styles/buttons.css" media="screen" rel="stylesheet" type="text/css" />
+    <link href="styles/substance.css" media="screen" rel="stylesheet" type="text/css" />
+    <link href="styles/composer.css" media="screen" rel="stylesheet" type="text/css" />
+
+    <!-- Templates -->
+    <script type="text/html" name="substance">
+      <% if (user) { %>
+      <div id="header">
+        <div class="header-container">
+          <a href="#" class="logo">Substance</a>
+          <div class="menu">
+            <a href="#" class="dashboard<%= !document ? ' active' : ''%>">My Documents</a>
+            <% if (document) { %> <a href="#" class="document active"><%= document.title || 'Untitled' %></a><% } %>
+          </div>
+
+          <div class="user-status">
+            <a href="#" class="sync button"><div class="icon"></div></a>
+            <a href="#new" class="new-document button"><div class="icon"></div>New Document</a>
+            <div class="username"><a title="Show User Profile" href="<%= Substance.settings.hub + '/' + user %>"><%= user %></a></div>
+            <a href="#logout" class="logout"></a>
+          </div>
+        </div>
+      </div>
+      <% } %>
+      <div id="container">
+
+      </div>
+
+      <!-- Temp Canvas for image manipulation -->
+      <canvas id="canvas" style="display: none;"></canvas>
+    </script>
+
+    <!-- Annotation Toggles -->
+    <script type="text/html" name="annotation_toggles">
+      <div class="annotation-toggles">
+        <% if (link){ %>
+          <div class="annotation-data">
+            <input type="text" class="link-url" name="link-url" data-id="<%= link.id %>" value="<%= link.url %>"></input>
+          </div>
+        <% } %>
+        <% _.each(annotations, function(a) { %>
+          <a href="#" class="toggle <%= a.type %><%= a.active ? " active" : "" %> " data-type="<%= a.type %>" title="<%= a.description %>"></a>
+        <% }) %>
+        <div class="arrow-down"></div>
+      </div>
+    </script>
+
+    <!-- Context Bar -->
+    <script type="text/html" name="context_bar">
+      <div class="context-bar">
+        <div class="title">Insert Element</div>
+        <div class="insert-commands">
+          <% _.each(node_types, function(node) { %>
+            <a href="#" class="insert <%= node.type %>" data-type="<%= node.type %>"><%= node.name %></a>
+          <% }); %>
+        </div>
+      </div>
+    </script>
+
+    <!-- Dashboard -->
+    <script type="text/html" name="dashboard">
+      <div id="dashboard">
+      <% if (documents.length > 0) { %>
+          <div id="documents">
+            <% _.each(documents, function(doc) { %>
+              <div class="document">
+                <% if (published(doc)) { %>
+                  <div class="status published">Published</div>
+                <% } else { %>
+                  <div class="status">Private</div>
+                <% } %>
+
+                <a class="load-document" href="#<%= doc.file %>" document="<%= doc._id %>">
+
+                  <div class="title">
+                    <%= doc.title %>
+                  </div>
+                </a>
+
+                <a href="#" class="delete-document" data-id="<%= doc.id %>"></a>
+
+                <!--<div class="author"><a href="#">michael</a></div>-->
+                <div class="updated-at"><span>updated </span><%= $.timeago(doc.updated_at) %></div>
+                <div class="sync-state<%= synced(doc.id) ? " synced" : "" %>">
+                  <%= synced(doc.id) ? "synced" : "local changes" %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% } else { %>
+        <div id="documents">
+          <h2>No Documents yet ...</h2>
+        </div>
+      <% } %>
+      </div>
+    </script>
+
+    <!-- Startpage -->
+    <script type="text/html" name="start">
+      <div id="help">
+        <img src="images/introduction.png"/>
+      </div>
+    </script>
+
+    <script type="text/html" name="editor">
+      <div id="document_menu">
+        <div class="document-menu-wrapper">
+          <div class="navigation">
+            <div class="actions">
+              <a class="action undo" href="#" title="Undo (CMD + Z)"><div class="icon"></div></a>
+              <a class="action redo" href="#" title="Redo (CMD + SHIFT + Z)"><div class="icon"></div></a>
+            </div>
+
+            <div class="toggles">
+              <!--<a class="toggle settings" href="#"><div class="icon"></div>Settings</a>-->
+              <a class="toggle view-online hidden" href="<%= Substance.settings.hub+'/documents/'+doc.id %>"><div class="icon"></div>View Online</a>
+              <!--<a class="toggle collaborators" href="#"><div class="icon"></div>Collaborators</a>-->
+              <!--<a class="toggle export" href="#"><div class="icon"></div>Export</a>-->
+            </div>
+          </div>
+
+          <div class="error-message"></div>
+
+          <div class="publish-state <%= session.publishState() %>">
+            <div class="icon"></div>
+            <div class="state"><%= session.publishState() %></div>
+            <div class="message">Private document</div>
+            
+            <a href="#" class="toggle-publish-actions"><div class="icon"></div></a>
+            <div class="publish-actions">
+            </div>
+          </div>
+        </div>
+
+        <div id="document_shelf">
+          <div class="shelf-content">
+          </div>
+        </div>
+      </div>
+
+      <div id="document_wrapper">
+        Content goes here
+      </div>
+    </script>
+
+    <!-- Document Settings -->
+    <script type="text/html" name="document_settings">
+      <h2>Document Settings</h2>
+      <form id="document_settings">
+        <div class="label">Name</div>
+        <input type="text" name="document_name" id="document_name"/>
+      </form>
+      <a href="#" class="delete-document">Delete Document</a>
+    </script>
+
+    <!-- User Login -->
+    <script type="text/html" name="login">
+      <div id="login">
+        <h1>Substance</h1>
+        <form id="login_form" class="centered-form">
+          <div class="error-message"></div>
+          <div class="label">Username</div>
+          <input type="text" name="username" id="login_username"/>
+          <div class="label">Password</div>
+          <input type="password" name="password" id="login_password"/>
+          <input type="submit" id="login_submit" value="Login"/>
+
+          <div class="sign-up">
+            New to Substance? <a href="#signup">Signup</a>
+          </div>
+        </form>
+      </div>
+    </script>
+
+    <!-- User Signup -->
+    <script type="text/html" name="signup">
+      <div id="login">
+        <h1>Substance</h1>
+        <form id="signup_form" class="centered-form">
+          <div class="error-message"></div>
+          <div class="label">Email</div>
+          <input type="text" name="name" id="signup_email"/>
+
+          <div class="label">Username</div>
+          <input type="text" name="username" id="signup_username"/>
+
+          <div class="label">Full Name</div>
+          <input type="text" name="name" id="signup_name"/>
+
+          <div class="label">Password</div>
+          <input type="password" name="password" id="signup_password"/>
+
+          <input type="submit" id="login_submit" value="Signup"/>
+
+          <div class="sign-up">
+            Already registered? <a href="#login">Login</a>
+          </div>
+        </form>
+      </div>
+    </script>
+
+    <!-- Document Collaborators -->
+    <script type="text/html" name="document_collaborators">
+      <h1>Document Collaborators</h1>
+    </script>
+
+    <!-- Document Export -->
+    <script type="text/html" name="document_export">
+      <h1>Document Export</h1>
+      <div>Not yet ready.</div>
+    </script>
+
+    <!-- Toolbar -->
+    <script type="text/html" name="toolbar">
+      <div id="toolbar"></div>
+    </script>
+
+    <!-- Tool -->
+    <script type="text/html" name="tool">
+      <a class="tool" data-command="<%= type %>" href="#<%= type %>"><%= text %></a>
+    </script>
+
+    <!-- Composer -->
+    <script type="text/x-ejs-template" name="composer">
+      <div id="composer">
+        <div id="tools"></div>
+        <div id="document"></div>
+      </div>
+    </script>
+
+    <script type="text/x-ejs-template" name="document">
+      <div id="document_content">
+        <div class="properties">
+          <div class="document-title" contenteditable="true"></div>
+          <div class="document-abstract" contenteditable="true"></div>
+        </div>
+
+        <div class="left-rail"></div>
+        <div class="right-rail"></div>
+
+        <div class="marker"></div>
+        <div class="nodes"></div>
+        <div id="context_bar"></div>
+      </div>
+    </script>
+
+    <script type="text/x-ejs-template" name="comments">
+      <div class="comment-scopes">
+        <% _.each(comments.scopes, function(scope, i) { %>
+          <div id="<%= _.htmlId(scope.id) %>" class="comment-scope<%= i === 0 ? ' active' : ''%><%= scope.type ? ' '+scope.type : '' %>" data-node="<%= node() %>" data-annotation="<%= scope.annotation %>">
+            <!--<%= scope.comments.length %>-->
+          </div>
+        <% }); %>
+      </div>
+
+      <% _.each(comments.scopes, function(scope, i) { %>
+        <div id="comments_<%= _.htmlId(scope.id) %>" class="comments<%= i === 0 ? ' active' : ''%>">
+          <div class="scope-header<%= scope.type ? ' '+scope.type : '' %>">
+            <% if (!_.include(['document', 'node'], scope.type)) { %>
+              <div class="title"><%= scope.type[0].toUpperCase()+scope.type.substr(1) %></div>
+              <!--<div class="subtitle">4 days ago, by michael</div>-->
+              <a href="#" class="button close-issue" title="Close Issue">Resolve</a>
+            <% } else { %>
+              <div class="title">Discussion</div>
+            <% } %>
+          </div>
+          <div class="comments-wrapper">
+            <% if (scope.comments.length=== 0) { %>
+              <div class="comments-placeholder">Start the discussion by adding a <b>comment</b>.</div>
+            <% } %>
+            <% _.each(scope.comments, function(c) { %>
+              <div class="comment">
+                <div class="meta">
+                  <div class="author"><%= c.user %></div>
+                  <div class="date"><%= $.timeago(c.created_at) %></div>
+                </div>
+                <div class="message">
+                  <%= c.content %>
+                </div>
+                <a class="delete-comment" title="Delete comment" data-id="<%= c.id %>" href="#"></a>
+              </div>
+            <% }); %>
+
+          </div>
+          <div class="new-comment">
+            <div class="comment-input-wrapper">
+              <textarea class="comment-content" name="comment" placeholder="Add a comment"></textarea>
+            </div>
+            <a href="#" class="button insert-comment">Add Comment</a>
+          </div>
+
+        </div>
+      <% }); %>
+    </script>
+
+    <script type="text/x-ejs-template" name="history">
+      <div class="operations">
+        <% _.each(_.clone(operations).reverse(), function(o, index) { %>
+          <a href="#" class="operation checkout-commit" data-commit="<%= o.sha %>"><%= _.opcode(o) %></a>
+        <% }); %>
+      </div>
+    </script>
+
+    <script type="text/x-ejs-template" name="outline">
+      <div class="outline">
+        Document outline. To be implemented.
+      </div>
+    </script>
+
+    <script type="text/x-ejs-template" name="patches">
+      <h2>Patches</h2>
+      <div class="patches">
+      </div>
+    </script>
+
+    <script type="text/x-ejs-template" name="tools">
+      <div class="tools">
+        <% if (selection().length === 0) { %>
+          <!--<div class="document-menu<%= selection() && selection().length > 0 ? "" : " active"%>">
+            <div class="tool-name">Document</div>
+            <div class="navigation">
+              <a class="toggle-tool comments<%= view === "comments" ? " active" : "" %>" href="#" data-view="comments">Comments</a>
+              <a class="toggle-tool history<%= view === "history" ? " active" : "" %>" href="#" data-view="history">History</a>
+            </div>
+          </div>-->
+        <% } %>
+        <% if (selection() && selection().length > 0) { %>
+          <div class="node-menu active">
+            <!--<div class="tool-name"><% if (selection().length === 1) { %>Text Element<% } else { %> Teh Selection <% } %></div>-->
+            <div class="navigation">
+              <!--<a class="toggle-tool comments" href="#" data-view="comments">CMTS</a>
+              <a class="toggle-tool edit" href="#" data-view="edit">EDIT</a>-->
+            </div>
+          </div>
+        <% } %>
+        <div class="tool">
+          Actual node tool goes here.
+        </div>
+      </div>
+    </script>
+
+    <script src="lib/underscore.js"></script>
+    <script src="lib/jquery.min.js"></script>
+    <script src="lib/keymaster.min.js"></script>
+    <script src="lib/data.js"></script>
+    <script src="lib/backbone.js"></script>
+    <script src="lib/base64.js"></script>
+
+    <script src="lib/dmp.js"></script>
+    <script src="lib/operation.js"></script>
+    <script src="lib/jquery.timeago.js"></script>
+
+    <script src="lib/surface.js"></script>
+
+    <!-- Extensions -->
+    <script src="src/extensions/redisdocstore.js"></script>
+
+    <!-- Model -->
+    <script src="lib/document.js"></script>
+    <script src="src/composer.js"></script>
+    <script src="src/util.js"></script>
+
+    <script src="src/replicator.js"></script>
+    <script src="src/model.js"></script>
+
+    <!-- Views -->
+    <script src="src/views/editor.js"></script>
+
+    <script src="src/views/document/settings.js"></script>
+    <script src="src/views/document/collaborators.js"></script>
+    <script src="src/views/document/export.js"></script>
+
+    <script src="src/views/document.js"></script>
+    <script src="src/views/tools.js"></script>
+    <script src="src/views/outline.js"></script>
+    <script src="src/views/history.js"></script>
+    <script src="src/views/patches.js"></script>
+    <script src="src/views/comments.js"></script>
+
+    <!-- Nodes -->
+    <script src="src/nodes/node.js"></script>
+    <script src="src/nodes/textish.js"></script>
+    <script src="src/nodes/text/text.js"></script>
+    <script src="src/nodes/code/code.js"></script>
+    <script src="src/nodes/image/image.js"></script>
+    <script src="src/nodes/heading/heading.js"></script>
+
+    <!-- Boot -->
+    <script src="src/boot.js"></script>
+
+  </head>
+  <body>
+
+  </body>
+</html>

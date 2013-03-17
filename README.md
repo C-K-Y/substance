@@ -1,18 +1,9 @@
-Substance
-================================================================================
+# Substance Composer
 
-Substance is a web-based document authoring and publishing engine developed in the open and available to everyone.
+The Substance Composer is a desktop application (OSX and Linux first, Windows later), where you create and manage digital documents. While traditional text editors usually deal with visual information (emulating its representations on paper), the Substance Composer is developed around the idea that content is data. Its structured document composition allows documents to be stored and represented in multiple arbitrary ways. On top of that, with its collaborative features you can annotate, comment and revise your content with anyone.
 
-* [Substance.io](http://substance.io) — Start using it
+For docs see: http://interior.substance.io/modules/composer.html
 
-* [Introduction](http://substance.io/substance/getting-started) — Learn more
+To try an early version download: http://interior.substance.io/downloads/Substance.zip
 
-* [Internals](http://substance.io/substance/substance-internals) — Technical Documentation & Installation Instructions
-
-Substance is built on top of several independent components that are available as separate libraries:
-
-* [Data.js](http://github.com/michael/data) — Data Manipulation and Graph Persistence for Node.js and the Browser
-
-* [PROPER](http://github.com/michael/proper) — A Semantic Rich Text Editor
-
-* [Letterpress](http://github.com/michael/letterpress) — Cross Media Publishing for Substance Documents
+To suggest a feature, report a bug, or general discussion: http://github.com/substance/composer/issues/
