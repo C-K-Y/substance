@@ -1,173 +1,174 @@
-sc.views.Editor = Backbone.View.extend({
+"use strict";
 
-  id: 'container',
-  // Events
-  // ------
+var _ = require("underscore");
+var util = require('substance-util');
+var html = util.html;
+var Substance = require("../substance");
+var View = Substance.Application.View;
 
-  events: {
-    'click .toggle.settings': 'toggleSettings',
-    'click .toggle.collaborators': 'toggleCollaborators',
-    'click .toggle.export': 'toggleExport',
-    'click .toggle-publish-actions': 'togglePublishActions',
-    'click a.publish-document ': 'publish',
-    'click a.unpublish-document ': 'unpublish',
-    'click a.undo': 'undo',
-    'click a.redo': 'redo'
-  },
 
-  undo: function() {
-    return this.composer.undo();
-  },
+// Substance.Editor.View
+// ==========================================================================
+//
+// The Substance Document Editor
 
-  redo: function() {
-    return this.composer.redo();
-  },
+var EditorView = function(controller) {
+  View.call(this);
 
-  publish: function() {
-    var that = this;
-    this.model.publish(function(err) {
-      if (err) {
-        that.togglePublishActions();
-        notify('error', err);
-        return;
-      }
-      that.updatePublishState();
-    });
-    return false;
-  },
+  this.$el.addClass('editor');
+  
+  this.controller = controller;
 
-  unpublish: function() {
-    var that = this;
-    this.model.unpublish(function(err) {
-      if (err) {
-        that.togglePublishActions();
-        notify('error', err);
-        return;
-      }
-      that.updatePublishState();
-    });
-    return false;
-  },
-
-  // Handlers
+  // Writer
   // --------
 
-  initialize: function() {
-    // Setup shelf views
-    this.settings      = new sc.views.Settings({ model: this.model, authorized: this.authorized });
-    this.collaborators = new sc.views.Collaborators({ model: this.model, docView: this, authorized: this.authorized });
-    this["export"]     = new sc.views.Export({ model: this.model, authorized: this.authorized });
-  },
+  this.writer = controller.writer;
 
-  togglePublishActions: function() {
-    this.$('.publish-actions').toggle();
-    return false;
-  },
+  this.listenTo(this.writer.selection, 'selection:changed', this.toggleAnnotationToggles);
 
-  toggleSettings:      function (e) { this.toggleView('settings'); return false; },
-  toggleCollaborators: function (e) { this.toggleView('collaborators'); return false; },
-  toggleExport:        function (e) { this.toggleView('export'); return false; },
+  // Surface
+  // --------
 
-  resizeShelf: function () {
-    var shelfHeight   = this.currentView ? $(this.currentView.el).outerHeight() : 0,
-        contentMargin = shelfHeight + 110;
+  // A Substance.Document.Writer instance is provided by the controller
+  this.surface = new Substance.Surface(this.controller.writer);
 
-    this.$('#document_shelf').css({ height: shelfHeight + 'px' });
-    this.$('#document_wrapper').css({ 'margin-top': contentMargin + 'px' });
-  },
+  this.$el.delegate('.image-files', 'change', _.bind(this.handleFileSelect, this));
 
-  closeShelf: function() {
-    if (!this.currentView) return;
+};
 
-    // It's important to use detach (not remove) to retain
-    // the view's event handlers
-    $(this.currentView.el).detach();
+EditorView.Prototype = function() {
 
-    this.currentView = null;
-    this.$('.navigation .toggle').removeClass('active');
-    this.resizeShelf();
-  },
 
-  toggleView: function (viewname) {
-    var view = this[viewname];
-    var shelf   = this.$('#document_shelf .shelf-content'),
-        content = this.$('#document_content');
-    
-    if (this.currentView && this.currentView === view) return this.closeShelf();
-    
-    this.$('.navigation .toggle').removeClass('active');
-    $('.navigation .toggle.'+viewname).addClass('active');
+  this.handleFileSelect = function(evt) {
 
-    shelf.empty();
-    shelf.append(view.el);
-    this.currentView = view;
-    view.render();
-    this.resizeShelf();
-  },
-
-  updateMessage: function() {
-    var state = this.model.publishState();
-    var doc = this.model.document;
-
-    if (state === 'published') {
-      this.$('.publish-state .message').html($.timeago(doc.meta.published_at));
-    }
-  },
-
-  updatePublishState: function() {
-    var state = this.model.publishState();
-    var doc = this.model.document;
-
-    this.$('.publish-state')
-      .removeClass('published unpublished dirty')
-      .addClass(state);
-
-    this.$('.publish-state .state').html(state !== 'unpublished' ? 'Published' : state);
-
-    if (state !== 'unpublished') {
-      this.$('.view-online').removeClass('hidden');
-    } else {
-      this.$('.view-online').addClass('hidden');
-    }
-
-    var message = "Private document";
-    if (state === "published") message = $.timeago(doc.meta.published_at);
-    if (state === "dirty") message = "Pending changes";
-    
-    this.$('.publish-state .message').html(message);
-    this.$('.publish-actions').empty();
-
-    if (state === "unpublished") {
-      this.$('.publish-actions').append('<a href="#" class="publish-document"><div class="icon"></div>Publish</a>');
-    }
-
-    if (state === "dirty") {
-      this.$('.publish-actions').append('<a href="#" class="publish-document"><div class="icon"></div>Publish Changes</a>');
-    }
-
-    if (state !== "unpublished") {
-      this.$('.publish-actions').append('<a href="#" class="unpublish-document"><div class="icon"></div>Unpublish</a>');
-    }
-
-    this.$('.publish-state .publish-actions').hide();
-  },
-
-  render: function () {
     var that = this;
-    this.$el.html(_.tpl('editor', {
-      session: this.model,
-      doc: this.model.document
-    }));
+    evt.stopPropagation();
+    evt.preventDefault();
 
-    // TODO: deconstructor-ish thing for clearing the interval when the view is no longer
-    clearInterval(window.leInterval);
-    window.leInterval = setInterval(function(){
-      that.updateMessage();
-    }, 1000);
+    // from an input element
+    var filesToUpload = evt.target.files;
+    var file = filesToUpload[0];
 
-    this.updatePublishState();
-    this.composer = new Substance.Composer({id: 'document_wrapper', model: this.model });
-    this.$('#document_wrapper').replaceWith(this.composer.render().el);
+    // TODO: display error message
+    if (!file.type.match('image.*')) return console.log('Not an image. Skipping...');
+
+    var img = document.createElement("img");
+    var reader = new FileReader();
+
+    reader.onload = function(e) {
+      img.src = e.target.result;
+      var largeImage = img.src;
+
+      _.delay(function() {
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+
+        var MAX_WIDTH = 800;
+        var MAX_HEIGHT = 1000;
+        var width = img.width;
+        var height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        var mediumImage = canvas.toDataURL("image/png");
+
+        that.insertImage('image', {
+          medium: mediumImage
+        });
+
+      }, 800);
+    };
+
+    reader.readAsDataURL(file);
+
+  };
+
+  this.toggleAnnotationToggles = function() {
+    var sel = this.writer.selection;
+    if (sel.getNodes().length === 1 && !sel.isCollapsed()) {
+      this.$('.annotation-toggles').show();
+    } else {
+      this.$('.annotation-toggles').hide();
+    }
+  };
+
+
+  // Insert a new image
+  // --------
+  //
+
+  this.insertImage = function(type, data) {
+    this.surface.insertImage(type, data);
+  };
+
+  // Insert a fresh new node
+  // --------
+  //
+
+  this.insertNode = function(type, data) {
+    this.surface.insertNode(type, data);
+  };
+
+
+  // Brings up the node insertion toggles
+  // --------
+  //
+
+  this.toggleNodeInserter = function() {
+    this.surface.toggleNodeInserter();
+  };
+
+  // Clear selection
+  // --------
+  //
+
+  this.clear = function() {
+
+  };
+
+  // Annotate current selection
+  // --------
+  //
+
+  this.annotate = function(type) {
+    this.writer.annotate(type);
+    return false;
+  };
+
+
+
+  // Rendering
+  // --------
+  //
+
+  this.render = function() {
+    this.$el.html(html.tpl('editor', this.controller));
+    this.$('#document .surface').replaceWith(this.surface.render().el);
     return this;
-  }
-});
+  };
+
+  this.dispose = function() {
+    this.surface.dispose();
+    this.stopListening();
+  };
+};
+
+EditorView.Prototype.prototype = View.prototype;
+EditorView.prototype = new EditorView.Prototype();
+
+module.exports = EditorView;
