@@ -1,0 +1,18 @@
+{
+  "name"          : "substance",
+  "description"   : "Towards open digital publishing.",
+  "url"           : "http://github.com/substance/substance/",
+  "keywords"      : ["digital documents", "linked-data", "online collaboration", "text editor", "browser"],
+  "author"        : "Michael Aufreiter",
+  "contributors"  : ["Oliver Buchtala"],
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/substance/substance.git"
+  },
+  "dependencies": {
+    "underscore": "",
+    "express": "",
+    "handlebars": ""
+  },
+  "version": "0.5.0"
+}
